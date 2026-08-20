@@ -12,6 +12,13 @@ Verbs today, over TCP:
 
 The verbs are transport-agnostic. `transport.py` carries them over TCP now;
 a future RDMA transport (see ROADMAP) implements the same frames one-sided.
+
+Hardening (per review): frame length is capped in transport.read_frame, region
+offsets/lengths are validated before any slice write, writes to the shared peer
+socket are serialized with a lock so concurrent callers cannot interleave a
+header and payload, and READ replies are correlated by request id so concurrent
+reads cannot be mismatched. There is still NO peer authentication — bind only to
+a point-to-point Thunderbolt address.
 """
 
 from __future__ import annotations
@@ -33,10 +40,14 @@ class Endpoint:
         self._regions: dict[int, bytearray] = {}
         self._next_rid = 1
         self._lock = threading.Lock()
+        self._send_lock = threading.Lock()
         self._recv_q: "queue.Queue[bytes]" = queue.Queue()
         self._peer_sock: socket.socket | None = None
         self._srv: socket.socket | None = None
-        self._read_replies: "queue.Queue[bytes]" = queue.Queue()
+        # req_id -> Queue for that read's reply; correlates concurrent reads.
+        self._pending: dict[int, "queue.Queue[bytes]"] = {}
+        self._pending_lock = threading.Lock()
+        self._next_req = 1
 
     # ---- region management (verbs: reg_mr) ----
     def register(self, buf: bytearray) -> int:
@@ -62,17 +73,32 @@ class Endpoint:
         self._peer_sock = s
         threading.Thread(target=self._client_reader, daemon=True).start()
 
+    def _send(self, op, req_id, rid, off, length, payload=b""):
+        # Serialize writes so a header and its payload are never interleaved
+        # with another caller's frame on the shared socket.
+        with self._send_lock:
+            T.write_frame(self._peer_sock, op, req_id, rid, off, length, payload)
+
     # ---- one-sided-style verbs ----
     def write(self, peer_rid: int, offset: int, data: bytes) -> None:
-        T.write_frame(self._peer_sock, T.OP_WRITE, peer_rid, offset, len(data), data)
+        self._send(T.OP_WRITE, 0, peer_rid, offset, len(data), data)
 
     def read(self, peer_rid: int, offset: int, length: int) -> bytes:
-        T.write_frame(self._peer_sock, T.OP_READ, peer_rid, offset, length)
-        return self._read_replies.get(timeout=30)
+        with self._pending_lock:
+            req_id = self._next_req
+            self._next_req += 1
+            reply_q: "queue.Queue[bytes]" = queue.Queue()
+            self._pending[req_id] = reply_q
+        self._send(T.OP_READ, req_id, peer_rid, offset, length)
+        try:
+            return reply_q.get(timeout=30)
+        finally:
+            with self._pending_lock:
+                self._pending.pop(req_id, None)
 
     # ---- two-sided verbs ----
     def send(self, msg: bytes) -> None:
-        T.write_frame(self._peer_sock, T.OP_SEND, 0, 0, len(msg), msg)
+        self._send(T.OP_SEND, 0, 0, 0, len(msg), msg)
 
     def recv(self, timeout: float | None = None) -> bytes:
         return self._recv_q.get(timeout=timeout)
@@ -86,6 +112,10 @@ class Endpoint:
                 pass
 
     # ---- internals ----
+    @staticmethod
+    def _valid_range(buf: bytearray, off: int, length: int) -> bool:
+        return isinstance(off, int) and isinstance(length, int) and 0 <= off <= off + length <= len(buf)
+
     def _serve_loop(self) -> None:
         while True:
             try:
@@ -96,29 +126,40 @@ class Endpoint:
             threading.Thread(target=self._handle, args=(conn,), daemon=True).start()
 
     def _handle(self, conn: socket.socket) -> None:
+        conn_lock = threading.Lock()
         while True:
             try:
-                op, rid, off, length, payload = T.read_frame(conn)
+                op, req_id, rid, off, length, payload = T.read_frame(conn)
             except (ConnectionError, ValueError, OSError):
                 return
             if op == T.OP_WRITE:
                 buf = self._regions.get(rid)
-                if buf is not None:
+                # Validate bounds AND exact payload length: bytearray slice
+                # assignment can resize the region, so a mismatched length or
+                # out-of-range offset must be rejected, not applied.
+                if buf is not None and len(payload) == length and self._valid_range(buf, off, length):
                     buf[off:off + length] = payload
             elif op == T.OP_READ:
                 buf = self._regions.get(rid)
-                chunk = bytes(buf[off:off + length]) if buf is not None else b""
-                T.write_frame(conn, T.OP_READ_REPLY, rid, off, len(chunk), chunk)
+                if buf is not None and self._valid_range(buf, off, length):
+                    chunk = bytes(buf[off:off + length])
+                else:
+                    chunk = b""
+                with conn_lock:
+                    T.write_frame(conn, T.OP_READ_REPLY, req_id, rid, off, len(chunk), chunk)
             elif op == T.OP_SEND:
                 self._recv_q.put(payload)
 
     def _client_reader(self) -> None:
         while True:
             try:
-                op, rid, off, length, payload = T.read_frame(self._peer_sock)
+                op, req_id, rid, off, length, payload = T.read_frame(self._peer_sock)
             except (ConnectionError, ValueError, OSError):
                 return
             if op == T.OP_READ_REPLY:
-                self._read_replies.put(payload)
+                with self._pending_lock:
+                    q = self._pending.get(req_id)
+                if q is not None:
+                    q.put(payload)
             elif op == T.OP_SEND:
                 self._recv_q.put(payload)
