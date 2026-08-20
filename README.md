@@ -77,3 +77,21 @@ KV layers.
 - Model-serving endpoints on the boxes should carry API keys even on a home
   LAN; only the TB link itself is unauthenticated by protocol, which is why it
   never leaves the cable.
+
+## Measured
+
+**RDMA (soft-RoCE / rxe) on the Strix box, loopback** (software RDMA stack, same host — measures stack overhead, not the cable):
+
+| metric | value | tool |
+|---|---|---|
+| WRITE latency, typical (2 B) | ~1.8 µs | `ib_write_lat -d rxe_tb` |
+| WRITE bandwidth, avg (64 KB) | ~2000 MiB/s (~16.8 Gbit/s) | `ib_write_bw -d rxe_tb` |
+
+The ~1.8 µs latency is the point: it is microsecond-class, ~100x below the
+sub-millisecond floor of the TCP transport. That is what makes fine-grained
+per-token KV-cache streaming viable rather than only coarse layer shipping.
+
+**TCP transport, M5 loopback:** ~8.1 Gbit/s round-trip (Python framing ceiling).
+
+The real cross-machine number over the Thunderbolt cable (Mac to Strix) is
+pending a second RDMA peer on the Mac side; measured next.
