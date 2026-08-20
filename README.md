@@ -11,11 +11,21 @@ serve one model together.
 
 ## Measured numbers
 
-| What | Value |
-|---|---|
-| Link ping (both directions) | 0.2 - 0.8 ms |
-| Throughput (through ssh encryption - a floor, not the ceiling) | 1 582 MB/s (~12.6 Gbit/s) |
-| 91 GB model file transfer | ~2 minutes |
+The transport ladder, all measured on this pair on 2026-08-20 — each layer
+shows exactly what its overhead costs:
+
+| Layer | Throughput | Notes |
+|---|---|---|
+| Raw link (iperf3, one-way, 5 s) | **17.3 Gbit/s** | zero retransmits |
+| ssh-encrypted file copy | 12.6 Gbit/s | cipher-bound floor; 91 GB model in ~2 min |
+| StrixLink verbs (TCP, 256 MiB write+read round-trip) | 6.05 Gbit/s | `examples/tb_transfer.py` |
+| llama.cpp RPC tensor upload (model load phase) | ~0.11 Gbit/s | per-tensor framing + syscalls eat 99% of the link — cold-starting a split model takes 10+ min |
+| rxe soft-RoCE loopback (same box, stack overhead only) | 16.8 Gbit/s, 1.8 µs WRITE latency | `examples/rxe_loopback.py` |
+| Link ping (both directions) | 0.2 - 0.8 ms | |
+
+The gap between rows 1 and 4 is the whole argument for the RDMA layers below:
+the cable is fine, the copies are not. The 1.8 µs rxe latency (vs sub-ms TCP)
+is what makes per-token KV streaming plausible.
 
 LLM throughput context (same day, both machines at full power, llama-bench
 pp512/tg128): dense 27B Q4 runs 748/25.3 t/s on the Mac and 376/12.4 t/s on
