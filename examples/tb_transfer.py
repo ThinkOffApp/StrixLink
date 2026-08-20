@@ -31,12 +31,13 @@ def serve(args):
 def client(args):
     ep = Endpoint(local=args.local, peer=args.peer, port=args.port)
     ep.connect()
-    payload = bytes(args.mb * 1024 * 1024)
+    import os
+    payload = os.urandom(args.mb * 1024 * 1024)
     t0 = time.time()
     ep.write(REGION_RID_HINT, 0, payload)
     back = ep.read(REGION_RID_HINT, 0, len(payload))
     dt = time.time() - t0
-    assert len(back) == len(payload), "round-trip length mismatch"
+    assert back == payload, "round-trip CONTENT mismatch (a dropped write would pass a length-only check)"
     gbit = (len(payload) * 2 * 8) / dt / 1e9
     print(f"round-tripped {args.mb} MiB in {dt:.3f}s = {gbit:.2f} Gbit/s (write+read, TCP/TB)")
     ep.close()
