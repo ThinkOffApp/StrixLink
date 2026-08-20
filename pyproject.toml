@@ -1,0 +1,15 @@
+[project]
+name = "strixlink"
+version = "0.1.0"
+description = "RDMA-verbs-shaped memory link between an Apple Silicon Mac and an AMD Strix Halo box over Thunderbolt"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "AGPL-3.0-or-later" }
+authors = [{ name = "ThinkOff" }]
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["strixlink"]
