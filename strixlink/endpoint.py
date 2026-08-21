@@ -99,11 +99,25 @@ class Endpoint:
         with self._send_lock:
             T.write_frame(self._peer_sock, op, req_id, rid, off, length, payload)
 
+    # Split large transfers into CHUNK-sized frames. A single huge frame stalls
+    # once it outgrows the socket buffer (measured: 64 MiB fell from 10.7 to 8.2
+    # Gbit/s over the cable, p99 jumped); chunks stay in the pipelined sweet spot
+    # regardless of the OS socket-buffer cap. Passing a memoryview slice to the
+    # transport avoids copying each chunk out of the caller's buffer.
+    _CHUNK = 16 * 1024 * 1024
+
     # ---- one-sided-style verbs ----
     def write(self, peer_rid: int, offset: int, data: bytes) -> None:
-        self._send(T.OP_WRITE, 0, peer_rid, offset, len(data), data)
+        n = len(data)
+        if n <= self._CHUNK:
+            self._send(T.OP_WRITE, 0, peer_rid, offset, n, data)
+            return
+        mv = memoryview(data)
+        for o in range(0, n, self._CHUNK):
+            piece = mv[o:o + self._CHUNK]
+            self._send(T.OP_WRITE, 0, peer_rid, offset + o, len(piece), piece)
 
-    def read(self, peer_rid: int, offset: int, length: int) -> bytes:
+    def _read_one(self, peer_rid: int, offset: int, length: int) -> bytes:
         with self._pending_lock:
             req_id = self._next_req
             self._next_req += 1
@@ -111,12 +125,19 @@ class Endpoint:
             self._pending[req_id] = reply_q
         self._send(T.OP_READ, req_id, peer_rid, offset, length)
         try:
-            # bytes() for a clean public API — _recvall returns a bytearray
-            # internally (per claudeMB review).
-            return bytes(reply_q.get(timeout=30))
+            return reply_q.get(timeout=30)
         finally:
             with self._pending_lock:
                 self._pending.pop(req_id, None)
+
+    def read(self, peer_rid: int, offset: int, length: int) -> bytes:
+        if length <= self._CHUNK:
+            return bytes(self._read_one(peer_rid, offset, length))
+        out = bytearray(length)
+        for o in range(0, length, self._CHUNK):
+            piece = self._read_one(peer_rid, offset + o, min(self._CHUNK, length - o))
+            out[o:o + len(piece)] = piece
+        return bytes(out)
 
     # ---- two-sided verbs ----
     def send(self, msg: bytes) -> None:
