@@ -75,6 +75,13 @@ class Endpoint:
     def start(self) -> None:
         self._srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        # Set SO_RCVBUF on the listener BEFORE listen() so accepted sockets
+        # inherit the large buffer and TCP window scaling is negotiated in the
+        # SYN (per claudeMB review — setting it only post-accept can be too late).
+        try:
+            self._srv.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, self._SOCK_BUF)
+        except OSError:
+            pass
         self._srv.bind((self.local, self.port))
         self._srv.listen(4)
         threading.Thread(target=self._serve_loop, daemon=True).start()
@@ -104,7 +111,9 @@ class Endpoint:
             self._pending[req_id] = reply_q
         self._send(T.OP_READ, req_id, peer_rid, offset, length)
         try:
-            return reply_q.get(timeout=30)
+            # bytes() for a clean public API — _recvall returns a bytearray
+            # internally (per claudeMB review).
+            return bytes(reply_q.get(timeout=30))
         finally:
             with self._pending_lock:
                 self._pending.pop(req_id, None)
