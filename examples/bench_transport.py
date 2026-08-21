@@ -15,8 +15,8 @@ import time
 from strixlink import Endpoint
 
 
-def run_client(local, peer, port, sizes_mib, iters):
-    ep = Endpoint(local=local, peer=peer, port=port)
+def run_client(local, peer, port, sizes_mib, iters, chunk):
+    ep = Endpoint(local=local, peer=peer, port=port, chunk=chunk)
     ep.connect()
     print(f"{'chunk':>8} {'iters':>6} {'GB/s':>7} {'Gbit/s':>8} {'p50 ms':>8} {'p99 ms':>8}")
     for mib in sizes_mib:
@@ -54,6 +54,7 @@ def main():
     p.add_argument("--server", action="store_true")
     p.add_argument("--iters", type=int, default=20)
     p.add_argument("--sizes", default="1,4,16,64")
+    p.add_argument("--chunk", type=int, default=16*1024*1024, help="chunk bytes; 0 disables (best for loopback)")
     a = p.parse_args()
     sizes = [int(x) for x in a.sizes.split(",")]
     if a.server:
@@ -65,7 +66,7 @@ def main():
         srv.start()
         srv.register(bytearray(max(sizes) * 1024 * 1024))
         time.sleep(0.2)
-    run_client(a.local, a.peer, a.port, sizes, a.iters)
+    run_client(a.local, a.peer, a.port, sizes, a.iters, a.chunk)
 
 
 if __name__ == "__main__":

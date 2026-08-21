@@ -33,10 +33,18 @@ _PORT = 50555
 
 
 class Endpoint:
-    def __init__(self, local: str, peer: str, port: int = _PORT):
+    def __init__(self, local: str, peer: str, port: int = _PORT,
+                 chunk: int = 16 * 1024 * 1024):
         self.local = local
         self.peer = peer
         self.port = port
+        # Split transfers larger than `chunk` into `chunk`-sized frames so each
+        # stays in the pipelined sweet spot regardless of the OS socket-buffer
+        # cap. Measured over Thunderbolt this lifted 64 MiB from 8.24 to 10.79
+        # Gbit/s with no cost to smaller sizes. Set chunk=0 to disable (best for
+        # same-host/loopback, where there is no buffer bottleneck to hide the
+        # extra framing).
+        self._chunk = chunk if chunk and chunk > 0 else None
         self._regions: dict[int, bytearray] = {}
         self._next_rid = 1
         self._lock = threading.Lock()
@@ -99,22 +107,17 @@ class Endpoint:
         with self._send_lock:
             T.write_frame(self._peer_sock, op, req_id, rid, off, length, payload)
 
-    # Split large transfers into CHUNK-sized frames. A single huge frame stalls
-    # once it outgrows the socket buffer (measured: 64 MiB fell from 10.7 to 8.2
-    # Gbit/s over the cable, p99 jumped); chunks stay in the pipelined sweet spot
-    # regardless of the OS socket-buffer cap. Passing a memoryview slice to the
-    # transport avoids copying each chunk out of the caller's buffer.
-    _CHUNK = 16 * 1024 * 1024
-
     # ---- one-sided-style verbs ----
+    # Passing a memoryview slice to the transport avoids copying each chunk out
+    # of the caller's buffer.
     def write(self, peer_rid: int, offset: int, data: bytes) -> None:
         n = len(data)
-        if n <= self._CHUNK:
+        if self._chunk is None or n <= self._chunk:
             self._send(T.OP_WRITE, 0, peer_rid, offset, n, data)
             return
         mv = memoryview(data)
-        for o in range(0, n, self._CHUNK):
-            piece = mv[o:o + self._CHUNK]
+        for o in range(0, n, self._chunk):
+            piece = mv[o:o + self._chunk]
             self._send(T.OP_WRITE, 0, peer_rid, offset + o, len(piece), piece)
 
     def _read_one(self, peer_rid: int, offset: int, length: int) -> bytes:
@@ -131,11 +134,11 @@ class Endpoint:
                 self._pending.pop(req_id, None)
 
     def read(self, peer_rid: int, offset: int, length: int) -> bytes:
-        if length <= self._CHUNK:
+        if self._chunk is None or length <= self._chunk:
             return bytes(self._read_one(peer_rid, offset, length))
         out = bytearray(length)
-        for o in range(0, length, self._CHUNK):
-            piece = self._read_one(peer_rid, offset + o, min(self._CHUNK, length - o))
+        for o in range(0, length, self._chunk):
+            piece = self._read_one(peer_rid, offset + o, min(self._chunk, length - o))
             out[o:o + len(piece)] = piece
         return bytes(out)
 
