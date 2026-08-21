@@ -22,7 +22,7 @@ shows exactly what its overhead costs:
 | llama.cpp RPC tensor upload (model load phase) | ~0.11 Gbit/s | per-tensor framing + syscalls eat 99% of the link — cold-starting a split model takes 10+ min |
 | rxe soft-RoCE loopback (same box, stack overhead only) | 16.8 Gbit/s, 1.8 µs WRITE latency | `examples/rxe_loopback.py` |
 | Link ping (both directions) | 0.2 - 0.8 ms | |
-| llama.cpp RPC split inference (27B Q4 across Mac Metal + Strix Vulkan) | **gen 16.6 t/s, pp 45.1 t/s** | one model, two machines, one cable - beats both single-box raw 27B numbers (Mac 6.3 low-power-era / 12.4-25.3 full); ~7 GB layer upload per cold start at ~0.11 Gbit/s remains the RPC pain |
+| llama.cpp RPC split inference (27B Q4 across Mac Metal + Strix Vulkan) | gen 16.6 t/s, pp 45.1 t/s | one model, two machines, one cable. Honest read: SLOWER than the best single box (Mac raw 25.3, MTP 25.0, MLX 32.3) because every token crosses the link - splitting a model that fits one machine costs speed. The split's value is CAPACITY: models neither box holds alone (150-250 GB class). Cold start: ~7 GB layer upload at ~0.11 Gbit/s (10+ min) |
 
 The gap between rows 1 and 4 is the whole argument for the RDMA layers below:
 the cable is fine, the copies are not. The 1.8 µs rxe latency (vs sub-ms TCP)
