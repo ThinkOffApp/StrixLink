@@ -18,7 +18,7 @@ shows exactly what its overhead costs:
 |---|---|---|
 | Raw link (iperf3, one-way, 5 s) | **17.3 Gbit/s** | zero retransmits |
 | ssh-encrypted file copy | 12.6 Gbit/s | cipher-bound floor; 91 GB model in ~2 min |
-| StrixLink verbs (TCP, 256 MiB write+read round-trip) | 6.05 Gbit/s | `examples/tb_transfer.py` |
+| StrixLink verbs (TCP, write+read round-trip) | **10.7-10.8 Gbit/s**, flat across 1-64 MiB | after the 2026-08-21 optimization pass (PR #6: copy elimination, 4 MiB socket buffers, 16 MiB chunking): was 6.05 before, so ~1.7x on the real cable and ~62% of the raw link; loopback went 19.6 to 54-62 Gbit/s (2.7-3.1x). `examples/bench_transport.py` |
 | llama.cpp RPC tensor upload (model load phase) | ~0.11 Gbit/s | per-tensor framing + syscalls eat 99% of the link — cold-starting a split model takes 10+ min |
 | rxe soft-RoCE loopback (same box, stack overhead only) | 16.8 Gbit/s, 1.8 µs WRITE latency | `examples/rxe_loopback.py` |
 | Link ping (both directions) | 0.2 - 0.8 ms | |
