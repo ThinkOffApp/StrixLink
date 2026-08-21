@@ -58,6 +58,19 @@ class Endpoint:
             self._regions[rid] = buf
             return rid
 
+    # Larger socket buffers keep a high-bandwidth link (multi-Gbit Thunderbolt)
+    # full despite the round-trip; the ~200 KB default throttles big transfers.
+    _SOCK_BUF = 4 * 1024 * 1024
+
+    @classmethod
+    def _tune(cls, s: socket.socket) -> None:
+        s.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+        for opt in (socket.SO_SNDBUF, socket.SO_RCVBUF):
+            try:
+                s.setsockopt(socket.SOL_SOCKET, opt, cls._SOCK_BUF)
+            except OSError:
+                pass
+
     # ---- lifecycle ----
     def start(self) -> None:
         self._srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -68,7 +81,7 @@ class Endpoint:
 
     def connect(self) -> None:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+        self._tune(s)
         s.connect((self.peer, self.port))
         self._peer_sock = s
         threading.Thread(target=self._client_reader, daemon=True).start()
@@ -122,7 +135,7 @@ class Endpoint:
                 conn, _ = self._srv.accept()
             except OSError:
                 return
-            conn.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+            self._tune(conn)
             threading.Thread(target=self._handle, args=(conn,), daemon=True).start()
 
     def _handle(self, conn: socket.socket) -> None:
