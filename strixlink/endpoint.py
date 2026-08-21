@@ -138,8 +138,15 @@ class Endpoint:
             return bytes(self._read_one(peer_rid, offset, length))
         out = bytearray(length)
         for o in range(0, length, self._chunk):
-            piece = self._read_one(peer_rid, offset + o, min(self._chunk, length - o))
-            out[o:o + len(piece)] = piece
+            want = min(self._chunk, length - o)
+            piece = self._read_one(peer_rid, offset + o, want)
+            # A short piece means the peer served less than asked (e.g. an
+            # out-of-range region on its side). Fail loudly rather than leave a
+            # silent zero-filled hole in the reassembled result (per claudeMB).
+            if len(piece) != want:
+                raise ConnectionError(
+                    f"short read chunk at offset {offset + o}: got {len(piece)}, wanted {want}")
+            out[o:o + want] = piece
         return bytes(out)
 
     # ---- two-sided verbs ----
