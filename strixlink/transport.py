@@ -47,14 +47,19 @@ class Transport:
     def close(self) -> None: ...
 
 
-def _recvall(sock: socket.socket, n: int) -> bytes:
-    buf = bytearray()
-    while len(buf) < n:
-        chunk = sock.recv(n - len(buf))
-        if not chunk:
+def _recvall(sock: socket.socket, n: int) -> bytearray:
+    # Preallocate once and recv_into it. The old `buf += chunk` reallocated and
+    # copied the whole accumulator each chunk — O(n^2) bytes moved for a large
+    # frame. recv_into a fixed buffer is O(n) and does zero intermediate copies.
+    buf = bytearray(n)
+    view = memoryview(buf)
+    got = 0
+    while got < n:
+        r = sock.recv_into(view[got:], n - got)
+        if r == 0:
             raise ConnectionError("peer closed mid-frame")
-        buf += chunk
-    return bytes(buf)
+        got += r
+    return buf
 
 
 def read_frame(sock: socket.socket):
@@ -73,4 +78,14 @@ def write_frame(sock: socket.socket, op: int, req_id: int, rid: int, off: int,
                 length: int, payload: bytes = b"") -> None:
     if length > MAX_FRAME_BYTES:
         raise ValueError(f"frame length {length} exceeds cap {MAX_FRAME_BYTES}")
-    sock.sendall(_HDR.pack(_MAGIC, op, req_id, rid, off, length) + payload)
+    header = _HDR.pack(_MAGIC, op, req_id, rid, off, length)
+    # Send header then payload separately. The old `header + payload` allocated
+    # and copied a fresh buffer the size of the whole frame (a 256 MiB payload
+    # meant a 256 MiB temporary); two sendall calls send the existing payload
+    # bytes with no extra copy. The caller holds the per-connection send lock,
+    # so the two calls stay atomic relative to other frames.
+    if payload:
+        sock.sendall(header)
+        sock.sendall(payload)
+    else:
+        sock.sendall(header)

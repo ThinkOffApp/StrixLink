@@ -16,6 +16,9 @@ def test_frame_length_capped():
         def __init__(self, data): self.buf = data
         def recv(self, n):
             chunk = self.buf[:n]; self.buf = self.buf[n:]; return chunk
+        def recv_into(self, view, n):
+            chunk = self.buf[:n]; self.buf = self.buf[n:]
+            view[:len(chunk)] = chunk; return len(chunk)
     hdr = T._HDR.pack(T._MAGIC, T.OP_WRITE, 0, 1, 0, T.MAX_FRAME_BYTES + 1)
     try:
         T.read_frame(FakeSock(hdr))
