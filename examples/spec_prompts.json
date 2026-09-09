@@ -1,0 +1,7 @@
+[
+ {"id": "code", "prompt": "Write a Python function that parses an ISO 8601 date string and returns the ISO week number, with unit tests using pytest. Explain edge cases at year boundaries."},
+ {"id": "summary", "prompt": "Summarize in 200 words the trade-offs between unified-memory mini PCs and discrete-GPU workstations for running large mixture-of-experts language models at home."},
+ {"id": "reasoning", "prompt": "A train leaves Helsinki at 08:10 averaging 140 km/h. A second train leaves Tampere, 180 km away, at 08:40 averaging 120 km/h toward Helsinki. When and where do they meet? Show the steps."},
+ {"id": "list", "prompt": "List 15 practical checks for a solo developer before publishing an open-source hardware design, one line each, grouped by schematic, layout and documentation."},
+ {"id": "chat", "prompt": "Explain to a curious 12-year-old how a language model predicts the next word, using a cooking analogy, in under 250 words."}
+]
