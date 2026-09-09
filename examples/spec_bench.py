@@ -5,6 +5,9 @@ Reports tokens/s from the server's own timings and the draft acceptance rate whe
 import json, sys, time, urllib.request, os, statistics
 url, label = sys.argv[1], sys.argv[2]; n = int(sys.argv[3]) if len(sys.argv) > 3 else 256
 prompts = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "spec_prompts.json")))
+# untimed warm-up (shader compile, pages coming in) so the first timed prompt is not the slow one (claudeMB review P2)
+warm = {"prompt": "Warm-up: count from one to twenty.", "n_predict": 64, "temperature": 0, "cache_prompt": False}
+urllib.request.urlopen(urllib.request.Request(url.rstrip("/") + "/completion", data=json.dumps(warm).encode(), headers={"Content-Type": "application/json"}), timeout=1800).read()
 rows = []
 for p in prompts:
     body = {"prompt": p["prompt"], "n_predict": n, "temperature": 0, "cache_prompt": False}
