@@ -79,7 +79,7 @@ Same five quants, same three columns, every cell remeasured on one llama.cpp com
 | IQ4_XS | 157 GB | thrashes | won't fit | 166 / 12.4 (Aug 161 / 15.6) |
 | Q4_K_XL | 200 GB | won't fit | won't fit | 162 / 11.9 (Aug 80 / 9.9) |
 
-The M5-solo column was the wrong one in August: measured at the 64 GB carve with the model split across two memory regions. The 1 GB carve holds it in one, and the newer glm5next code with Vulkan kernels for the fused ops adds the rest.
+The M5-solo column was the wrong one in August, and the gain is the code, not the memory: August's own binary (f30bed8) gives 8.7 tokens/s at either carve (the published 6.2 / 5.8 came from a run older than the M5's own August log), the 3 September glm5next code 12.2, and PR 27754's Vulkan kernels for the fused ops 15.1. The 1 GB carve with direct-IO loading is what made the DeepSeek rows honest; for GLM both small files already fitted.
 
 One trap worth knowing before you split this model over RPC: on the 3 September GLM branch (PR 27752) the Vulkan backend has no kernels for the fused hyper-connection ops, and `ggml_backend_rpc_device_supports_op` answers "supported" for everything, so the client ships the fused ops to the Strix and every cable row prints garbage at a plausible speed. Alone, the Strix probes its device and falls back correctly. PR 27754 sits on a master that carries the Vulkan kernels (#26578) and is correct at full speed. Raw log with the isolations: [docs/measurements-2026-09-10-glm-raw.md](docs/measurements-2026-09-10-glm-raw.md).
 
