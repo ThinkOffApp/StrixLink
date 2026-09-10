@@ -65,6 +65,24 @@ with direct IO at the minimum carve; pin the Mac RPC server to `MTL0`; keep a
 small context on sample runs (the default is the model's full context, whose
 KV cache alone can exhaust memory); the link itself re-measured at 16.5 Gbit/s.
 
+### GLM-5.3-Flash 321B, the 31 August table remeasured (10 Sep 2026)
+
+![M5²: GLM-5.3-Flash on two M5s, 10 Sep 2026](docs/glm-table-2026-09-10.png)
+
+Same five quants, same three columns, every cell remeasured on one llama.cpp commit (upstream PR 27754, `d94f44e79`, on master `434ddbb`) with the Strix at the 1 GB VRAM carve (120 GB GTT) and direct-IO loading; every cell answered the same prompt correctly at temperature 0. Prompt / generation tokens per second, pp512 / tg128, three runs:
+
+| quant | size | MacBook solo | M5 solo | MB + M5 split |
+|---|---|---|---|---|
+| IQ1_S | 93 GB | 491 / 30.6 (Aug 456 / 29.4) | 117 / 15.1 (Aug 72 / 6.2) | 188 / 17.1 (Aug 177 / 18.4) |
+| IQ2_XXS | 102 GB | 491 / 31.7 (Aug 483 / 26.3) | 115 / 14.8 (Aug 68 / 5.8) | 186 / 16.8 (Aug 169 / 17.2) |
+| Q3_K_XL | 148 GB | thrashes | won't fit | 172 / 12.9 (Aug 160 / 15.5) |
+| IQ4_XS | 157 GB | thrashes | won't fit | 166 / 12.4 (Aug 161 / 15.6) |
+| Q4_K_XL | 200 GB | won't fit | won't fit | 162 / 11.9 (Aug 80 / 9.9) |
+
+The M5-solo column was the wrong one in August: measured at the 64 GB carve with the model split across two memory regions. The 1 GB carve holds it in one, and the newer glm5next code with Vulkan kernels for the fused ops adds the rest.
+
+One trap worth knowing before you split this model over RPC: on the 3 September GLM branch (PR 27752) the Vulkan backend has no kernels for the fused hyper-connection ops, and `ggml_backend_rpc_device_supports_op` answers "supported" for everything, so the client ships the fused ops to the Strix and every cable row prints garbage at a plausible speed. Alone, the Strix probes its device and falls back correctly. PR 27754 sits on a master that carries the Vulkan kernels (#26578) and is correct at full speed. Raw log with the isolations: [docs/measurements-2026-09-10-glm-raw.md](docs/measurements-2026-09-10-glm-raw.md).
+
 ## Layer 1: the IP link
 
 Thunderbolt/USB4 between the two machines, IP on top. No switch, no LAN.
