@@ -53,6 +53,7 @@ model, 5 for the rest). Raw log: [docs/measurements-2026-09-10-raw.md](docs/meas
 | Qwen3.8-27B Q4_K_XL | Strix alone, Vulkan | 291.6 ± 28.6 | 12.15 ± 0.02 | 376 / 12.4 | generation unchanged by the carve: a model that fits is bandwidth-bound either way; prompt measured at the balanced profile (August: accelerator-performance) |
 | Qwen3.8-27B Q4_K_XL | split, Mac client + Strix RPC device | 433.8 ± 4.9 | 15.25 ± 0.13 | 45.1 / 16.6 | splitting a model that fits one box still loses on generation (15 vs the Mac's 25) |
 | Nex-N2.5-mini Q4_K_M (19.7 GiB, 35B-A3B MoE) | Mac alone / split Mac client + Strix | 3099 ± 11 / 1431.9 ± 1.9 | 117.1 ± 0.9 / 69.6 ± 2.8 | new | the small-model control: the split halves a model that fits |
+| DeepSeek V4 Flash IQ3_XXS | Mac alone, live llama-server, speculative decoding with the DSpark drafter (`examples/spec_bench.py`, 5 prompts, 256 tokens, temp 0) | gen 32.23 ± 0.47 baseline vs **30.76 ± 3.40** drafted, acceptance 57% | | new | net loss on the Mac: the 10.9 GB drafter (mxfp4 experts, not requantizable) does not fit beside the 97 GiB model in the 110 GB Metal budget, so it ran on the CPU (`-ngld 0`) and the drafting cost exceeded the gain; only the reasoning prompt gained (37.0 at 75% acceptance), the others lost |
 
 Coherence was checked on every DeepSeek row with the same prompt at
 temperature 0 (`llama-completion -st -c 4096`): all four configurations produced

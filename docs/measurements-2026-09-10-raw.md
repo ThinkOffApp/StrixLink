@@ -149,3 +149,18 @@ Traceback (most recent call last):
 urllib.error.HTTPError: HTTP Error 500: Internal Server Error
 server log tail: 0.08.652.554 I common_speculative_impl_draft_dflash: - n_max=3, n_min=0, p_min=0.00 0.08.652.554 I common_speculative_impl_draft_dflash: - block_size=5, mask_token_id=128799, n_extract=3, sample_from_anchor=true 
 SPEC-MAC-DONE 00:59:17Z
+
+## DEEPSEEK ROW 7, MacBook (M5 Max, Metal): speculative decoding, PR 8 protocol, warm-up call before each set 01:00:28Z
+(baseline recorded above: gen 32.23 ± 0.47, pp 96.0 ± 24.0, -c 8192)
+
+## DEEPSEEK ROW 7, MacBook (M5 Max, Metal): speculative decoding, PR 8 protocol, warm-up call before each set 01:13:14Z
+(baseline recorded above: gen 32.23 ± 0.47, pp 96.0 ± 24.0, -c 8192)
+### drafted (--spec-type draft-dspark --spec-draft-n-max 3)
+  code      pp    90.4 t/s  gen  30.04 t/s  n=256  acc=53%  wall   8.9s
+  summary   pp    89.1 t/s  gen  28.83 t/s  n=256  acc=50%  wall   9.2s
+  reasoning pp   129.8 t/s  gen  37.03 t/s  n=256  acc=75%  wall   7.3s
+  list      pp    80.5 t/s  gen  30.91 t/s  n=256  acc=58%  wall   8.6s
+  chat      pp    79.7 t/s  gen  27.00 t/s  n=256  acc=48%  wall   9.8s
+| MacBook DS IQ3_XXS + DSpark bf16/mxfp4 draft on 0 GPU layers (-ngld), spec-draft-n-max 3, c 4096 | pp 93.9 ± 18.4 | gen 30.76 ± 3.40 | acceptance 57% | 5 prompts x 256 tokens, temp 0 |
+server log tail: 1.02.676.708 I slot print_timing: id  3 | task 330 | draft acceptance = 0.58065 (  162 accepted /   279 generated), mean len =  2.74 1.12.475.741 I slot print_timing: id  2 | task 426 | draft acceptance = 0.48397 (  151 accepted /   312 generated), mean len =  2.45 
+SPEC-MAC-DONE 01:14:28Z
