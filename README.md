@@ -34,6 +34,34 @@ pp512/tg128): dense 27B Q4 runs 748/25.3 t/s on the Mac and 376/12.4 t/s on
 Strix Halo (25.0 t/s with MTP speculative decoding); a 284B MoE at 3-bit runs
 556/30.0 vs 147/12.4. Raw generation is bandwidth-bound on both.
 
+### 2026-09-10 rerun: the corrected picture
+
+The August rows above were taken with the Strix at a 64 GB BIOS carve. On
+2026-09-09 the carve went to 1 GB with 120 GB of GTT (the whole memory as one
+GPU-addressable region), both boxes were put on the same llama.cpp commit
+(434ddbb, Vulkan+RPC on the Strix, Metal+RPC on the Mac), and every row was
+measured again, card protocol (pp512 / tg128, tokens/s, 3 runs for the 97 GiB
+model, 5 for the rest). Raw log: [docs/measurements-2026-09-10-raw.md](docs/measurements-2026-09-10-raw.md).
+
+| Model | Configuration | pp512 | tg128 | August | Notes |
+|---|---|---|---|---|---|
+| DeepSeek V4 Flash IQ3_XXS (97 GiB, 284B MoE) | Strix alone, Vulkan, direct-IO load | 140.3 ± 4.4 | **18.56 ± 0.01** | 147 / 12.4 | generation +50%: in August the model spilled past the carve. Needs `-lm dio` (`--load-mode dio` on llama-server): with mmap the page cache and the pinned GTT copy of the same file exceed the 122 GB of RAM and the load never finishes |
+| DeepSeek V4 Flash IQ3_XXS | Mac alone, Metal | 584.5 ± 3.2 | **33.42 ± 0.00** | 556 / 30.0 | still the fastest single box |
+| DeepSeek V4 Flash IQ3_XXS | split, Mac client + Strix RPC device | 235.0 ± 10.4 | 20.24 ± 0.04 | 12.1 / 20.9 | prompt side ~20x August (llama.cpp's own RPC path improved); generation unchanged; 18 tensors cached on the Strix (`rpc-server -c`) |
+| DeepSeek V4 Flash IQ3_XXS | split, Strix client (direct-IO) + Mac RPC device | 234.3 ± 12.6 | 19.30 ± 0.08 | new | the Mac's `ggml-rpc-server` must be started with `-d MTL0`; its default device is the BLAS CPU path, which aborts mid-graph on this model |
+| Qwen3.8-27B Q4_K_XL (16.3 GiB, dense) | Mac alone, Metal | 726.6 ± 2.6 | 25.45 ± 0.52 | 748 / 25.3 | unchanged |
+| Qwen3.8-27B Q4_K_XL | Strix alone, Vulkan | 291.6 ± 28.6 | 12.15 ± 0.02 | 376 / 12.4 | generation unchanged by the carve: a model that fits is bandwidth-bound either way; prompt measured at the balanced profile (August: accelerator-performance) |
+| Qwen3.8-27B Q4_K_XL | split, Mac client + Strix RPC device | 433.8 ± 4.9 | 15.25 ± 0.13 | 45.1 / 16.6 | splitting a model that fits one box still loses on generation (15 vs the Mac's 25) |
+| Nex-N2.5-mini Q4_K_M (19.7 GiB, 35B-A3B MoE) | Mac alone / split Mac client + Strix | 3099 ± 11 / 1431.9 ± 1.9 | 117.1 ± 0.9 / 69.6 ± 2.8 | new | the small-model control: the split halves a model that fits |
+
+Coherence was checked on every DeepSeek row with the same prompt at
+temperature 0 (`llama-completion -st -c 4096`): all four configurations produced
+the identical correct answer. The August "garbage output" was the carve spill,
+not the RPC code. Practical rules from the rerun: load big models on the Strix
+with direct IO at the minimum carve; pin the Mac RPC server to `MTL0`; keep a
+small context on sample runs (the default is the model's full context, whose
+KV cache alone can exhaust memory); the link itself re-measured at 16.5 Gbit/s.
+
 ## Layer 1: the IP link
 
 Thunderbolt/USB4 between the two machines, IP on top. No switch, no LAN.
