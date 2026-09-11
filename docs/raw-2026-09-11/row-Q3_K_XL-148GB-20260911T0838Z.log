@@ -1,0 +1,16 @@
+Q3_K_XL-148GB: 147 GB, -ts 45/55 -> M5 66 GB, Mac 81 GB
+## Q3_K_XL-148GB split -ts 45/55 (M5/Mac)  2026-09-11T08:38:58Z
+| model                          |       size |     params | backend    | threads | ts           |            test |                  t/s |
+| ------------------------------ | ---------: | ---------: | ---------- | ------: | ------------ | --------------: | -------------------: |
+| glm5next 313B.A17B Q3_K - Medium | 137.39 GiB |   320.76 B | MTL,BLAS,RPC |       6 | 45.00/55.00  |           pp512 |        183.89 ± 6.83 |
+| glm5next 313B.A17B Q3_K - Medium | 137.39 GiB |   320.76 B | MTL,BLAS,RPC |       6 | 45.00/55.00  |           tg128 |         13.78 ± 0.14 |
+
+build: d94f44e79 (889)
+load_tensors:   CPU_Mapped model buffer size =   642.81 MiB
+load_tensors:  MTL0_Mapped model buffer size =   496.30 MiB
+load_tensors:  MTL0_Mapped model buffer size = 30648.92 MiB
+load_tensors:  MTL0_Mapped model buffer size = 42589.47 MiB
+load_tensors: RPC0[10.55.0.2:50052] model buffer size = 62847.61 MiB
+set_abort_callback: call
+set_abort_callback: call
+GLM-ROW-DONE Q3_K_XL-148GB 2026-09-11T08:42:40Z
