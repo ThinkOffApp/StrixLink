@@ -34,6 +34,66 @@ pp512/tg128): dense 27B Q4 runs 748/25.3 t/s on the Mac and 376/12.4 t/s on
 Strix Halo (25.0 t/s with MTP speculative decoding); a 284B MoE at 3-bit runs
 556/30.0 vs 147/12.4. Raw generation is bandwidth-bound on both.
 
+### 2026-09-10 rerun: the corrected picture
+
+The August rows above were taken with the Strix at a 64 GB BIOS carve. On
+2026-09-09 the carve went to 1 GB with 120 GB of GTT (the whole memory as one
+GPU-addressable region), both boxes were put on the same llama.cpp commit
+(434ddbb, Vulkan+RPC on the Strix, Metal+RPC on the Mac), and every row was
+measured again, card protocol (pp512 / tg128, tokens/s, 3 runs for the 97 GiB
+model, 5 for the rest). Raw log: [docs/measurements-2026-09-10-raw.md](docs/measurements-2026-09-10-raw.md).
+
+| Model | Configuration | pp512 | tg128 | August | Notes |
+|---|---|---|---|---|---|
+| DeepSeek V4 Flash IQ3_XXS (97 GiB, 284B MoE) | Strix alone, Vulkan, direct-IO load | 140.3 ± 4.4 | **18.56 ± 0.01** | 147 / 12.4 | generation +50%: in August the model spilled past the carve. Needs `-lm dio` (`--load-mode dio` on llama-server): with mmap the page cache and the pinned GTT copy of the same file exceed the 122 GB of RAM and the load never finishes |
+| DeepSeek V4 Flash IQ3_XXS | Mac alone, Metal | 584.5 ± 3.2 | **33.42 ± 0.00** | 556 / 30.0 | still the fastest single box |
+| DeepSeek V4 Flash IQ3_XXS | split, Mac client + Strix RPC device | 235.0 ± 10.4 | 20.24 ± 0.04 | 12.1 / 20.9 | prompt side ~20x August (llama.cpp's own RPC path improved); generation unchanged; 18 tensors cached on the Strix (`rpc-server -c`) |
+| DeepSeek V4 Flash IQ3_XXS | split, Strix client (direct-IO) + Mac RPC device | 234.3 ± 12.6 | 19.30 ± 0.08 | new | the Mac's `ggml-rpc-server` must be started with `-d MTL0`; its default device is the BLAS CPU path, which aborts mid-graph on this model |
+| Qwen3.8-27B Q4_K_XL (16.3 GiB, dense) | Mac alone, Metal | 726.6 ± 2.6 | 25.45 ± 0.52 | 748 / 25.3 | unchanged |
+| Qwen3.8-27B Q4_K_XL | Strix alone, Vulkan | 291.6 ± 28.6 | 12.15 ± 0.02 | 376 / 12.4 | generation unchanged by the carve: a model that fits is bandwidth-bound either way; prompt measured at the balanced profile (August: accelerator-performance) |
+| Qwen3.8-27B Q4_K_XL | split, Mac client + Strix RPC device | 433.8 ± 4.9 | 15.25 ± 0.13 | 45.1 / 16.6 | splitting a model that fits one box still loses on generation (15 vs the Mac's 25) |
+| Nex-N2.5-mini Q4_K_M (19.7 GiB, 35B-A3B MoE) | Mac alone / split Mac client + Strix | 3099 ± 11 / 1431.9 ± 1.9 | 117.1 ± 0.9 / 69.6 ± 2.8 | new | the small-model control: the split halves a model that fits |
+| DeepSeek V4 Flash IQ3_XXS | Strix alone, live llama-server (direct IO), speculative decoding with the DSpark drafter | gen 17.65 ± 0.08 baseline; drafted **not runnable** | | new | 97 GiB + the 10.9 GB drafter exceed the 120 GB the GPU may take, radv refuses the buffers, also with the drafter set to the CPU (claudemm) |
+| DeepSeek V4 Flash mixed 91 GB quant (layers 37-42 Q4_K experts, IQ2_XXS elsewhere) | Strix alone, llama-bench card / live server / live server + DSpark drafter on the GPU (3 draft tokens) | 148.4 ± 4.8 (bench) | 17.31 ± 0.03 (bench), 16.62 ± 0.02 (server), **23.30 ± 2.95 drafted**, acceptance 62% (41% list prompt, 77% chat) | new | the fastest Strix-alone DeepSeek of the table: +40% from the drafter once it fits beside the model (102 GB on the GPU); the mix's quality against IQ3_XXS is not measured, one perplexity pass would settle it (claudemm) |
+| DeepSeek V4 Flash IQ3_XXS | Mac alone, live llama-server, speculative decoding with the DSpark drafter (`examples/spec_bench.py`, 5 prompts, 256 tokens, temp 0) | gen 32.23 ± 0.47 baseline vs **30.76 ± 3.40** drafted, acceptance 57% | | new | net loss on the Mac: the 10.9 GB drafter (mxfp4 experts, not requantizable) does not fit beside the 97 GiB model in the 110 GB Metal budget, so it ran on the CPU (`-ngld 0`) and the drafting cost exceeded the gain; only the reasoning prompt gained (37.0 at 75% acceptance), the others lost |
+
+Coherence was checked on every DeepSeek row with the same prompt at
+temperature 0 (`llama-completion -st -c 4096`): all four configurations produced
+the identical correct answer. The August "garbage output" was the carve spill,
+not the RPC code. Practical rules from the rerun: load big models on the Strix
+with direct IO at the minimum carve; pin the Mac RPC server to `MTL0`; keep a
+small context on sample runs (the default is the model's full context, whose
+KV cache alone can exhaust memory); the link itself re-measured at 16.5 Gbit/s.
+
+### GLM-5.3-Flash 321B, the 31 August table remeasured (10 and 11 Sep 2026)
+
+![M5²: GLM-5.3-Flash on two M5s, 11 Sep 2026](docs/glm-table-2026-09-11.png)
+
+Same five quants, same three columns, every cell remeasured on one llama.cpp commit (upstream PR 27754, `d94f44e79`, on master `434ddbb`) with the Strix at the 1 GB VRAM carve (120 GB GTT) and direct-IO loading; every cell answered the same prompt correctly at temperature 0. Prompt / generation tokens per second, pp512 / tg128, three runs:
+
+| quant | size | MacBook solo | M5 solo | MB + M5 split, best placement (M5 / Mac share) | split at llama.cpp's default placement |
+|---|---|---|---|---|---|
+| IQ1_S | 93 GB | 491 / 30.6 (Aug 456 / 29.4) | 117 / 15.1 (Aug 72 / 6.2) | **333 / 24.2** (15 / 85) | 188 / 17.1 (Aug 177 / 18.4) |
+| IQ2_XXS | 102 GB | 491 / 31.7 (Aug 483 / 26.3) | 115 / 14.8 (Aug 68 / 5.8) | **330 / 24.3** (15 / 85) | 186 / 16.8 (Aug 169 / 17.2) |
+| Q3_K_XL | 148 GB | thrashes | won't fit | **184 / 13.8** (45 / 55) | 172 / 12.9 (Aug 160 / 15.5) |
+| IQ4_XS | 157 GB | thrashes | won't fit | **197 / 15.2** (37 / 63) | 166 / 12.4 (Aug 161 / 15.6) |
+| Q4_K_XL | 200 GB | won't fit | won't fit | 162 / 11.9 at the default placement: too big to move Mac-heavy under the two ceilings below | 162 / 11.9 (Aug 80 / 9.9) |
+
+**The 11 September finding: placement, not hardware.** llama.cpp's default tensor split hands about half the
+layers to the slower box, so the pair was barely faster than August. Putting 85 % of the two small files on the Mac
+(`-ts 15/85`, the M5's share comes first) nearly doubled prompt speed and lifted generation by a third on the same
+two boxes and cable. The two ceilings that set the ratio for the big files: about 110 GB usable on the Strix GPU
+(the 122 GB box hard-hangs above that) and about 90 GB of weights on the Mac's Metal before it answers
+"Insufficient Memory" (`iogpu.wired_limit_mb` at its default; a 92 GB Q3_K_XL share died there). Raw llama-bench
+output, the load logs' buffer lines, the two rows we do not publish (an M5-heavy slip and the Mac-OOM void) and
+the size-guarded scripts: [docs/raw-2026-09-11/](docs/raw-2026-09-11/). Both ends on PR 27754 (`d94f44e79`),
+the Strix `ggml-rpc-server` rebuilt with `GGML_RPC_RDMA=OFF` (its RDMA transport does not talk to the Mac's build)
+and run without the `-c` file cache (which had silently filled 441 GB of the Strix's disk).
+
+The M5-solo column was the wrong one in August, and the gain is the code, not the memory: August's own binary (f30bed8) gives 8.7 tokens/s at either carve (the published 6.2 / 5.8 came from a run older than the M5's own August log), the 3 September glm5next code 12.2, and PR 27754's Vulkan kernels for the fused ops 15.1. The 1 GB carve with direct-IO loading is what made the DeepSeek rows honest; for GLM both small files already fitted.
+
+One trap worth knowing before you split this model over RPC: on the 3 September GLM branch (PR 27752) the Vulkan backend has no kernels for the fused hyper-connection ops, and `ggml_backend_rpc_device_supports_op` answers "supported" for everything, so the client ships the fused ops to the Strix and every cable row prints garbage at a plausible speed. Alone, the Strix probes its device and falls back correctly. PR 27754 sits on a master that carries the Vulkan kernels (#26578) and is correct at full speed. Raw log with the isolations: [docs/measurements-2026-09-10-glm-raw.md](docs/measurements-2026-09-10-glm-raw.md).
+
 ## Layer 1: the IP link
 
 Thunderbolt/USB4 between the two machines, IP on top. No switch, no LAN.

@@ -1,0 +1,31 @@
+START 2026-09-11T08:14:12Z host=Mac build=ggml_metal_device_init: testing tensor API for f16 support
+## Q3_K_XL-148GB split Mac-heavy -ts 33/67  2026-09-11T08:14:12Z
+| model                          |       size |     params | backend    | threads | ts           |            test |                  t/s |
+| ------------------------------ | ---------: | ---------: | ---------- | ------: | ------------ | --------------: | -------------------: |
+| glm5next 313B.A17B Q3_K - Medium | 137.39 GiB |   320.76 B | MTL,BLAS,RPC |       6 | 33.00/67.00  |           pp512 |         20.42 ± 6.08 |
+buffers:
+load_tensors:   CPU_Mapped model buffer size =   642.81 MiB
+load_tensors:  MTL0_Mapped model buffer size = 47311.03 MiB
+load_tensors:  MTL0_Mapped model buffer size = 47324.62 MiB
+load_tensors:  MTL0_Mapped model buffer size = 42589.47 MiB
+load_tensors: RPC0[10.55.0.2:50052] model buffer size = 43908.38 MiB
+llama_kv_cache: RPC0[10.55.0.2:50052] KV buffer size =     2.00 MiB
+sample:
+Explain in three sentences why the sky is blue.GLM-ROW-DONE Q3_K_XL-148GB 2026-09-11T08:30:18Z
+## IQ4_XS-157GB split Mac-heavy -ts 37/63  2026-09-11T08:30:18Z
+| model                          |       size |     params | backend    | threads | ts           |            test |                  t/s |
+| ------------------------------ | ---------: | ---------: | ---------- | ------: | ------------ | --------------: | -------------------: |
+| glm5next 313B.A17B IQ4_XS - 4.25 bpw | 146.04 GiB |   320.76 B | MTL,BLAS,RPC |       6 | 37.00/63.00  |           pp512 |        197.31 ± 4.46 |
+| glm5next 313B.A17B IQ4_XS - 4.25 bpw | 146.04 GiB |   320.76 B | MTL,BLAS,RPC |       6 | 37.00/63.00  |           tg128 |         15.23 ± 0.09 |
+
+build: d94f44e79 (889)
+buffers:
+load_tensors:   CPU_Mapped model buffer size =   642.81 MiB
+load_tensors:  MTL0_Mapped model buffer size =   496.30 MiB
+load_tensors:  MTL0_Mapped model buffer size = 40593.56 MiB
+load_tensors:  MTL0_Mapped model buffer size = 47194.01 MiB
+load_tensors:  MTL0_Mapped model buffer size =  3904.67 MiB
+load_tensors: RPC0[10.55.0.2:50052] model buffer size = 53249.76 MiB
+sample:
+Explain in three sentences why the sky is blue.GLM-ROW-DONE IQ4_XS-157GB 2026-09-11T08:36:36Z
+## Q4_K_XL-200GB split Mac-heavy -ts 48/52  2026-09-11T08:36:36Z

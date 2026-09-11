@@ -1,0 +1,16 @@
+START 2026-09-11T08:07:41Z host=Mac build=ggml_metal_device_init: testing tensor API for f16 support
+## Q3_K_XL-148GB split Mac-heavy -ts 67/33  2026-09-11T08:07:41Z
+| model                          |       size |     params | backend    | threads | ts           |            test |                  t/s |
+| ------------------------------ | ---------: | ---------: | ---------- | ------: | ------------ | --------------: | -------------------: |
+| glm5next 313B.A17B Q3_K - Medium | 137.39 GiB |   320.76 B | MTL,BLAS,RPC |       6 | 67.00/33.00  |           pp512 |        140.91 ± 3.00 |
+| glm5next 313B.A17B Q3_K - Medium | 137.39 GiB |   320.76 B | MTL,BLAS,RPC |       6 | 67.00/33.00  |           tg128 |         11.35 ± 0.06 |
+
+build: d94f44e79 (889)
+buffers:
+load_tensors:   CPU_Mapped model buffer size =   642.81 MiB
+load_tensors:  MTL0_Mapped model buffer size =   496.30 MiB
+load_tensors:  MTL0_Mapped model buffer size = 41690.23 MiB
+load_tensors: RPC0[10.55.0.2:50052] model buffer size = 94395.77 MiB
+llama_kv_cache: RPC0[10.55.0.2:50052] KV buffer size =     4.00 MiB
+llama_memory_recurrent: RPC0[10.55.0.2:50052] RS buffer size =   102.75 MiB
+sample:
