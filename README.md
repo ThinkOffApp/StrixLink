@@ -65,19 +65,30 @@ with direct IO at the minimum carve; pin the Mac RPC server to `MTL0`; keep a
 small context on sample runs (the default is the model's full context, whose
 KV cache alone can exhaust memory); the link itself re-measured at 16.5 Gbit/s.
 
-### GLM-5.3-Flash 321B, the 31 August table remeasured (10 Sep 2026)
+### GLM-5.3-Flash 321B, the 31 August table remeasured (10 and 11 Sep 2026)
 
-![M5²: GLM-5.3-Flash on two M5s, 10 Sep 2026](docs/glm-table-2026-09-10.png)
+![M5²: GLM-5.3-Flash on two M5s, 11 Sep 2026](docs/glm-table-2026-09-11.png)
 
 Same five quants, same three columns, every cell remeasured on one llama.cpp commit (upstream PR 27754, `d94f44e79`, on master `434ddbb`) with the Strix at the 1 GB VRAM carve (120 GB GTT) and direct-IO loading; every cell answered the same prompt correctly at temperature 0. Prompt / generation tokens per second, pp512 / tg128, three runs:
 
-| quant | size | MacBook solo | M5 solo | MB + M5 split |
-|---|---|---|---|---|
-| IQ1_S | 93 GB | 491 / 30.6 (Aug 456 / 29.4) | 117 / 15.1 (Aug 72 / 6.2) | 188 / 17.1 (Aug 177 / 18.4) |
-| IQ2_XXS | 102 GB | 491 / 31.7 (Aug 483 / 26.3) | 115 / 14.8 (Aug 68 / 5.8) | 186 / 16.8 (Aug 169 / 17.2) |
-| Q3_K_XL | 148 GB | thrashes | won't fit | 172 / 12.9 (Aug 160 / 15.5) |
-| IQ4_XS | 157 GB | thrashes | won't fit | 166 / 12.4 (Aug 161 / 15.6) |
-| Q4_K_XL | 200 GB | won't fit | won't fit | 162 / 11.9 (Aug 80 / 9.9) |
+| quant | size | MacBook solo | M5 solo | MB + M5 split, best placement (M5 / Mac share) | split at llama.cpp's default placement |
+|---|---|---|---|---|---|
+| IQ1_S | 93 GB | 491 / 30.6 (Aug 456 / 29.4) | 117 / 15.1 (Aug 72 / 6.2) | **333 / 24.2** (15 / 85) | 188 / 17.1 (Aug 177 / 18.4) |
+| IQ2_XXS | 102 GB | 491 / 31.7 (Aug 483 / 26.3) | 115 / 14.8 (Aug 68 / 5.8) | **330 / 24.3** (15 / 85) | 186 / 16.8 (Aug 169 / 17.2) |
+| Q3_K_XL | 148 GB | thrashes | won't fit | **184 / 13.8** (45 / 55) | 172 / 12.9 (Aug 160 / 15.5) |
+| IQ4_XS | 157 GB | thrashes | won't fit | **197 / 15.2** (37 / 63) | 166 / 12.4 (Aug 161 / 15.6) |
+| Q4_K_XL | 200 GB | won't fit | won't fit | 162 / 11.9 at the default placement: too big to move Mac-heavy under the two ceilings below | 162 / 11.9 (Aug 80 / 9.9) |
+
+**The 11 September finding: placement, not hardware.** llama.cpp's default tensor split hands about half the
+layers to the slower box, so the pair was barely faster than August. Putting 85 % of the two small files on the Mac
+(`-ts 15/85`, the M5's share comes first) nearly doubled prompt speed and lifted generation by a third on the same
+two boxes and cable. The two ceilings that set the ratio for the big files: about 110 GB usable on the Strix GPU
+(the 122 GB box hard-hangs above that) and about 90 GB of weights on the Mac's Metal before it answers
+"Insufficient Memory" (`iogpu.wired_limit_mb` at its default; a 92 GB Q3_K_XL share died there). Raw llama-bench
+output, the load logs' buffer lines, the two rows we do not publish (an M5-heavy slip and the Mac-OOM void) and
+the size-guarded scripts: [docs/raw-2026-09-11/](docs/raw-2026-09-11/). Both ends on PR 27754 (`d94f44e79`),
+the Strix `ggml-rpc-server` rebuilt with `GGML_RPC_RDMA=OFF` (its RDMA transport does not talk to the Mac's build)
+and run without the `-c` file cache (which had silently filled 441 GB of the Strix's disk).
 
 The M5-solo column was the wrong one in August, and the gain is the code, not the memory: August's own binary (f30bed8) gives 8.7 tokens/s at either carve (the published 6.2 / 5.8 came from a run older than the M5's own August log), the 3 September glm5next code 12.2, and PR 27754's Vulkan kernels for the fused ops 15.1. The 1 GB carve with direct-IO loading is what made the DeepSeek rows honest; for GLM both small files already fitted.
 
