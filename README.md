@@ -9,6 +9,12 @@ One cable gives you an IP link an order of magnitude faster than gigabit LAN,
 and with llama.cpp's RPC backend the two machines' GPUs (Metal + Vulkan) can
 serve one model together.
 
+![M5²: GLM-5.3-Flash 321B across a MacBook M5 Max and a Bosgame M5 Strix Halo, every cell measured](docs/glm-table-2026-09-11.png)
+
+**Companion repo:** [mac-amd-llm-cluster](https://github.com/ThinkOffApp/mac-amd-llm-cluster) is the
+recipe — how to actually run a 321B model across the pair. This repo is the link underneath it: what
+the cable can carry, measured layer by layer, plus the raw logs behind the tables.
+
 ## Measured numbers
 
 The transport ladder, all measured on this pair on 2026-08-20 — each layer
@@ -142,6 +148,20 @@ READ/WRITE with no CPU in the data path — the proper version of what layers
 and both endpoints are ready to become an integration target: same cable,
 same addresses, drop-in replacement for the transport underneath the RPC and
 KV layers.
+
+## DeepSeek V4.1 and the engram constants
+
+When DeepSeek-V4.1-Flash landed, every published GGUF refused to load on the only runtime that
+existed: the files were missing five "engram" constants the loader requires, and re-converting means
+a 700 GB job. Reading the converter showed those constants are deterministic functions of
+`config.json` and the tokenizer rather than of the weights, so they can be recomputed and written
+into an existing file with no re-conversion. We did that, reported it upstream, and when the author
+published his own repair we diffed it against ours: all nine keys identical, same values and types.
+
+The tool and the full write-up are in [`tools/`](tools/). Short version for anyone arriving today:
+use the author's official repair, ours is kept for the record and for pre-repair files. And note the
+distinction that cost us a day — a file that *loads* is not a model that *runs*: without the CSA2
+sparse attention the forward pass still produces one repeated token.
 
 ## Security notes
 
