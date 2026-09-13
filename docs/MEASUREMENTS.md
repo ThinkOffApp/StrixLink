@@ -1,5 +1,20 @@
 # Measurements
 
+> **Provenance — read this before quoting any number below.**
+> Measured **2026-08-21** (the day this file was written), on the Bosgame M5 at its
+> factory **64 GiB VRAM carve-out**, with the llama.cpp build current that day.
+> The config is stated because two things changed afterwards:
+>
+> - **The Strix inference rows are superseded.** Remeasured on 10–11 Sep 2026 at the
+>   1 GB carve-out (one contiguous ~120 GB GPU region) on llama.cpp PR 27754
+>   (`d94f44e79`), the Strix solo column moved a long way — it had been limited by the
+>   code, not by the memory. For current figures see
+>   [mac-amd-llm-cluster](https://github.com/ThinkOffApp/mac-amd-llm-cluster).
+> - **The transport rows stand.** They measure the link itself, which the carve-out
+>   does not touch.
+>
+> The August rows are kept as a dated record, not as current performance.
+
 Hardware: **Bosgame M5** (AMD Strix Halo, 128 GB, Vulkan/soft-RoCE, Linux) and a
 **MacBook M5 Max** (128 GB unified, Metal), joined by a Thunderbolt cable. All
 numbers at full power. Inference via llama.cpp; split inference via its RPC
