@@ -6,6 +6,10 @@ runs warm under the heatsink. Bought to give the Mac side of StrixLink a
 25G-class alternative path alongside the direct Thunderbolt cable, and
 because the card inside is RDMA-capable (see below).
 
+![What you get: the adapter in its case with the supplied USB4 cable](img/plyisty-case.jpg)
+
+*What you get: the adapter in its case with the supplied USB4 40 Gbps cable. Bus-powered, no separate power supply.*
+
 ![Top of the carrier board: USB-C upstream, two SFP28 cages, Thunderbolt3 To 25/10G INTERNET silkscreen, Thunderbolt controller under a copper heatsink](img/plyisty-top.jpg)
 
 ![Underside: the Mellanox ConnectX-4 Lx OCP mezzanine card, Model No CX4421A, Made in Israel](img/plyisty-underside.jpg)
