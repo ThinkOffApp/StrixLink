@@ -163,6 +163,13 @@ use the author's official repair, ours is kept for the record and for pre-repair
 distinction that cost us a day — a file that *loads* is not a model that *runs*: without the CSA2
 sparse attention the forward pass still produces one repeated token.
 
+## Hardware notes
+
+- [Plyisty Thunderbolt-to-25G adapter](docs/hardware/plyisty-25g.md) — what's
+  inside a generic TB3-to-dual-SFP28 adapter (a Mellanox ConnectX-4 Lx OCP
+  card), how macOS drives it today, and why it's relevant to this repo's RDMA
+  ambitions (see [MCDMA_INTEGRATION.md](docs/MCDMA_INTEGRATION.md)).
+
 ## Security notes
 
 - The RPC server binds only to the point-to-point TB address. Keep it that way.
