@@ -165,10 +165,15 @@ sparse attention the forward pass still produces one repeated token.
 
 ## Hardware notes
 
-- [Plyisty Thunderbolt-to-25G adapter](docs/hardware/plyisty-25g.md) — what's
-  inside a generic TB3-to-dual-SFP28 adapter (a Mellanox ConnectX-4 Lx OCP
-  card), how macOS drives it today, and why it's relevant to this repo's RDMA
-  ambitions (see [MCDMA_INTEGRATION.md](docs/MCDMA_INTEGRATION.md)).
+### Plyisty Thunderbolt-to-25G adapter
+
+<p>
+  <img src="docs/hardware/img/plyisty-case.jpg" alt="Plyisty adapter in its case with the USB4 cable" width="32%">
+  <img src="docs/hardware/img/plyisty-top.jpg" alt="Carrier board: USB-C, two SFP28 cages, Thunderbolt controller" width="32%">
+  <img src="docs/hardware/img/plyisty-underside.jpg" alt="Underside: Mellanox ConnectX-4 Lx OCP card, model CX4421A" width="32%">
+</p>
+
+A generic Thunderbolt 3 to dual SFP28 adapter with a Mellanox ConnectX-4 Lx OCP card inside (model CX4421A, PCI 15b3:1015), on a PCIe Gen3 x4 link. macOS 27 drives it with Apple's built-in driver, both ports offer 25GBASE-CR, and it stays dark until you approve it under "Allow accessories to connect". Full notes, measurements and what is not measured yet: [docs/hardware/plyisty-25g.md](docs/hardware/plyisty-25g.md). Why it matters here: [MCDMA_INTEGRATION.md](docs/MCDMA_INTEGRATION.md).
 
 ## Security notes
 
