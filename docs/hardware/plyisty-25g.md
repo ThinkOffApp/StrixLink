@@ -57,7 +57,8 @@ provided by Apple's driver. Two community projects target it, upstream and
 not measured by us:
 
 - [Ash Hart's MCDMA](https://github.com/ashhart/MCDMA) — ConnectX-4 Lx was
-  accepted in source via its PR #3, on macOS 27 26A428.
+  accepted in source via [its PR #3](https://github.com/ashhart/MCDMA/pull/3),
+  on macOS 27 26A428.
 - MelonDMA — a DriverKit ConnectX driver.
 
 See [MCDMA_INTEGRATION.md](../MCDMA_INTEGRATION.md) for the contract this
