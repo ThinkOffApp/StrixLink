@@ -11,7 +11,7 @@ serve one model together.
 
 ![M5²: GLM-5.3-Flash 321B across a MacBook M5 Max and a Bosgame M5 Strix Halo, every cell measured](docs/glm-table-2026-09-11.png)
 
-**Companion repo:** [mac-amd-llm-cluster](https://github.com/ThinkOffApp/mac-amd-llm-cluster) is the
+**Companion repo:** [mac-amd-cuda-llm-cluster](https://github.com/ThinkOffApp/mac-amd-cuda-llm-cluster) is the
 recipe — how to actually run a 321B model across the pair. This repo is the link underneath it: what
 the cable can carry, measured layer by layer, plus the raw logs behind the tables.
 
@@ -181,3 +181,7 @@ A generic Thunderbolt 3 to dual SFP28 adapter with a Mellanox ConnectX-4 Lx OCP 
 - Model-serving endpoints on the boxes should carry API keys even on a home
   LAN; only the TB link itself is unauthenticated by protocol, which is why it
   never leaves the cable.
+
+---
+
+Part of the [ThinkOff](https://thinkoff.io) hardware & local-LLM series · [mac-amd-cuda-llm-cluster](https://github.com/ThinkOffApp/mac-amd-cuda-llm-cluster) · [VENTUNO Q NPU](https://github.com/ThinkOffApp/ventuno) · [Dynamic n-gram Memory](https://github.com/ThinkOffApp/dynamic-ngram-memory)
